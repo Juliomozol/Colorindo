@@ -1,14 +1,25 @@
-import { Client, GatewayIntentBits, EmbedBuilder } from "discord.js";
+// 📦 Importações e configuração
+import { Client, GatewayIntentBits, EmbedBuilder, Partials } from "discord.js";
 import dotenv from "dotenv";
+import express from "express";
 dotenv.config();
 
+// 🌐 Servidor para manter o bot online
+const app = express();
+app.get("/", (req, res) => res.send("🤖 Bot do Discord está online!"));
+app.listen(process.env.PORT || 3000, () =>
+  console.log("🌐 Servidor keep-alive rodando!")
+);
+
+// 🤖 Inicialização do cliente Discord
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.DirectMessages
-  ]
+  ],
+  partials: [Partials.Channel] // Necessário para receber mensagens por DM
 });
 
 client.once("ready", () => {
@@ -54,7 +65,7 @@ client.on("messageCreate", async (message) => {
       const corMsg = await channel.awaitMessages({ filter, max: 1, time: 60000 });
       const cor = corMsg.first().content;
 
-      // Cria a embed
+      // Cria o embed
       const embed = new EmbedBuilder()
         .setTitle(titulo)
         .setDescription(conteudo)

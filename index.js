@@ -65,7 +65,9 @@ client.on("messageCreate", async (message) => {
         });
         const conteudo = conteudoMsg.first().content;
 
-        await channel.send("📢 Em qual canal você quer enviar a mensagem? (mencione com #)");
+        await channel.send(
+          "📢 Em qual canal você quer enviar a mensagem? (mencione com #)"
+        );
         const canalMsg = await channel.awaitMessages({
           filter,
           max: 1,
@@ -83,7 +85,7 @@ client.on("messageCreate", async (message) => {
       }
 
       if (tipoMsg === "embed") {
-        // Pergunta o canal primeiro (pra seguir seu fluxo original)
+        // Pergunta o canal primeiro
         await channel.send(
           "📢 Em qual canal você quer enviar a mensagem? (mencione com #)"
         );
@@ -147,7 +149,7 @@ client.on("messageCreate", async (message) => {
           }
         }
 
-        // Pergunta a cor da embed (com validação e repetir se errada)
+        // Pergunta a cor da embed (com validação e repetir até válido)
         let cor = null;
         while (true) {
           await channel.send(
@@ -164,7 +166,7 @@ client.on("messageCreate", async (message) => {
             break;
           } else {
             await channel.send(
-              "❌ Cor inválida! Use um código hexadecimal, ex: `#ff0000`."
+              "❌ Cor inválida! Use um código hexadecimal, ex: `#ff0000`. Tente novamente."
             );
           }
         }
@@ -177,54 +179,35 @@ client.on("messageCreate", async (message) => {
         if (titulo) embed.setTitle(titulo);
         if (imagem) embed.setImage(imagem);
 
-        // Confirmação e prévia em DM
+        // Envia prévia no próprio canal para o usuário, depois confirma envio
+        const previewMsg = await channel.send({
+          content: `${message.author}, aqui está a prévia da sua mensagem embed (somente você veja! 🕵️‍♂️)`,
+          embeds: [embed],
+        });
+
         await channel.send(
-          "👁️ Deseja ver uma prévia da mensagem antes de enviar? Responda `sim` ou `não`."
+          `${message.author}, deseja enviar essa mensagem? Responda \`sim\` para enviar ou \`não\` para cancelar.`
         );
-        const confirmMsg = await channel.awaitMessages({
+
+        const respostaFinal = await channel.awaitMessages({
           filter,
           max: 1,
           time: 60000,
         });
-        const querPreview = confirmMsg.first().content.toLowerCase();
 
-        if (querPreview === "sim") {
-          // Tenta enviar DM com a prévia
-          try {
-            await message.author.send({
-              content: "📨 Aqui está a prévia da mensagem embed:",
-              embeds: [embed],
-            });
-            await channel.send(
-              "✅ Prévia enviada no seu privado. Responda `sim` para enviar no canal, ou `não` para cancelar."
-            );
-
-            const respostaFinal = await message.author.dmChannel.awaitMessages({
-              filter,
-              max: 1,
-              time: 60000,
-            });
-
-            if (respostaFinal.first().content.toLowerCase() === "sim") {
-              await canal.send({ embeds: [embed] });
-              await channel.send("✅ Mensagem enviada com sucesso!");
-            } else {
-              await channel.send("❌ Envio cancelado.");
-            }
-          } catch (err) {
-            await channel.send(
-              "❌ Não consegui enviar a prévia no privado. Verifique suas configurações de privacidade."
-            );
-          }
-        } else {
-          // Envia direto sem preview
+        if (respostaFinal.first().content.toLowerCase() === "sim") {
           await canal.send({ embeds: [embed] });
           await channel.send("✅ Mensagem enviada com sucesso!");
+          // Apaga a prévia para não ficar no chat
+          await previewMsg.delete().catch(() => {});
+        } else {
+          await channel.send("❌ Envio cancelado.");
+          await previewMsg.delete().catch(() => {});
         }
         return;
       }
 
-      // Caso a pessoa não responda "normal" ou "embed"
+      // Resposta inválida para tipo mensagem
       await channel.send(
         "❌ Resposta inválida. Por favor, digite `normal` ou `embed`."
       );
